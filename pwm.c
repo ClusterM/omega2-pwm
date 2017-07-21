@@ -124,9 +124,9 @@ static void pwm(uint8_t channel, uint32_t freq, uint8_t duty)
     uint32_t duration1 = duration * (100-duty) / 100;
 
     devmem(PWM0_CON + reg_offset, 4, 1, 0x7000);
-    devmem(PWM0_HDURATION + reg_offset, 4, 1, duration1-1);
-    devmem(PWM0_LDURATION + reg_offset, 4, 1, duration0-1);
-    devmem(PWM0_GDURATION + reg_offset, 4, 1, duration / 2 - 1);
+    devmem(PWM0_HDURATION + reg_offset, 4, 1, duration1 - 1);
+    devmem(PWM0_LDURATION + reg_offset, 4, 1, duration0 - 1);
+    devmem(PWM0_GDURATION + reg_offset, 4, 1, duration / 2);
     devmem(PWM0_SEND_DATA0 + reg_offset, 4, 1, 0x55555555);
     devmem(PWM0_SEND_DATA1 + reg_offset, 4, 1, 0x55555555);
     devmem(PWM0_WAVE_NUM + reg_offset, 4, 1, 0);
