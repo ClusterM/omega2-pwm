@@ -102,7 +102,7 @@ uint32_t devmem(uint32_t target, uint8_t size, uint8_t write, uint32_t value)
 static void usage(const char *cmd)
 {
     fprintf(stderr, 
-        "\nUsage:\t%s pwm <channel> <frequency> [duty]\n",
+        "\nUsage:\t%s <channel> <frequency> [duty]\n",
         cmd);
 }
 
