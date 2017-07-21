@@ -102,10 +102,8 @@ uint32_t devmem(uint32_t target, uint8_t size, uint8_t write, uint32_t value)
 static void usage(const char *cmd)
 {
     fprintf(stderr, 
-        "\nUsage:\t%s pwm <channel> <frequency> <duty>\n",
-        "\nUsage:\t%s melody <channel> <frequency> <duration_ms> [<frequency> <duration_ms> [<frequency> <duration_ms> ...]]\n",
-        "\n",
-        cmd, cmd);
+        "\nUsage:\t%s pwm <channel> <frequency> [duty]\n",
+        cmd);
 }
 
 static void pwm(uint8_t channel, uint32_t freq, uint8_t duty)
@@ -150,23 +148,23 @@ int main(int argc, char **argv)
     uint32_t freq;
     uint8_t duty = 50;
 
-    if (sscanf(argv[1], "%d", &channel) != 1)
+    if ((sscanf(argv[1], "%d", &channel) != 1) || (channel > 3))
     {
-        fprintf(stderr, "Invalid number\n");
+        fprintf(stderr, "Invalid channel number\n");
         exit(1);
     }
 
     if (sscanf(argv[2], "%d", &freq) != 1)
     {
-        fprintf(stderr, "Invalid number\n");
+        fprintf(stderr, "Invalid frequency number\n");
         exit(1);
     }
 
     if (argc >= 4)
     {
-        if (sscanf(argv[3], "%d", &duty) != 1)
+        if ((sscanf(argv[3], "%d", &duty) != 1) || (duty > 100))
         {
-            fprintf(stderr, "Invalid number\n");
+            fprintf(stderr, "Invalid duty number\n");
             exit(1);
         }
     }
