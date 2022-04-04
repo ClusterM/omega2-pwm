@@ -32,6 +32,18 @@
 #define PWM0_THRESH 0x10005040       // PWM0 Thresh register
 #define PWM0_SEND_WAVENUM 0x10005044 // PWM0 Send Wave Number register
 
+#define CLKSEL_100KHZ 0b00000000 
+#define CLKSEL_40MHZ  0b00001000
+
+#define CLKDIV_1      0b00000000
+#define CLKDIV_2      0b00000001
+#define CLKDIV_4      0b00000010
+#define CLKDIV_8      0b00000011
+#define CLKDIV_16     0b00000100
+#define CLKDIV_32     0b00000101
+#define CLKDIV_64     0b00000110
+#define CLKDIV_128    0b00000111
+
 uint32_t devmem(uint32_t target, uint8_t size, uint8_t write, uint32_t value)
 {
     int fd;
@@ -106,7 +118,19 @@ static void usage(const char *cmd)
         cmd);
 }
 
-static void pwm(uint8_t channel, uint32_t freq, uint8_t duty)
+static uint32_t get_base_freq(uint16_t mode)
+{
+    int i;
+    uint32_t r;
+    if (!(mode & CLKSEL_40MHZ))
+        r = 100000;
+    else
+        r = 40000000;
+    for (i = 0; i < (mode & 0b00000111); i++) r /= 2;
+    return r;
+}
+
+static void pwm_raw(uint8_t channel, uint16_t mode, uint16_t duration_h, uint16_t duration_l)
 {
     uint32_t enable = devmem(PWM_ENABLE, 4, 0, 0);
 
@@ -114,25 +138,82 @@ static void pwm(uint8_t channel, uint32_t freq, uint8_t duty)
     devmem(PWM_ENABLE, 4, 1, enable);
 
     // Need to disable PWM?
-    if (!freq)
+    if (!duration_h || !duration_l)
         return;
 
     uint32_t reg_offset = 0x40 * channel;
 
-    uint32_t duration = 100000 / freq;
-    uint32_t duration0 = duration * duty / 100;
-    uint32_t duration1 = duration * (100-duty) / 100;
-
-    devmem(PWM0_CON + reg_offset, 4, 1, 0x7000);
-    devmem(PWM0_HDURATION + reg_offset, 4, 1, duration1 - 1);
-    devmem(PWM0_LDURATION + reg_offset, 4, 1, duration0 - 1);
-    devmem(PWM0_GDURATION + reg_offset, 4, 1, duration / 2);
+    devmem(PWM0_CON + reg_offset, 4, 1, 0x7000 | mode);
+    devmem(PWM0_HDURATION + reg_offset, 4, 1, duration_h - 1);
+    devmem(PWM0_LDURATION + reg_offset, 4, 1, duration_l - 1);
+    devmem(PWM0_GDURATION + reg_offset, 4, 1, (duration_h + duration_l) / 2 - 1);
     devmem(PWM0_SEND_DATA0 + reg_offset, 4, 1, 0x55555555);
     devmem(PWM0_SEND_DATA1 + reg_offset, 4, 1, 0x55555555);
     devmem(PWM0_WAVE_NUM + reg_offset, 4, 1, 0);
 
     enable |= 1<<channel;
     devmem(PWM_ENABLE, 4, 1, enable);
+}
+
+
+static int pwm(uint8_t channel, uint32_t freq, uint8_t duty)
+{
+    // Need to disable PWM?
+    if (!freq)
+    {
+        pwm_raw(channel, 0, 0, 0);
+        return 0;
+    }
+
+    uint32_t reg_offset = 0x40 * channel;
+
+    uint16_t mode = 0;
+    uint32_t base_freq = 0;
+    if (get_base_freq(CLKSEL_40MHZ | CLKDIV_1) / freq < 0xFFFF)
+        mode = CLKSEL_40MHZ | CLKDIV_1;
+    else if (get_base_freq(CLKSEL_40MHZ | CLKDIV_2) / freq < 0xFFFF)
+        mode = CLKSEL_40MHZ | CLKDIV_2;
+    else if (get_base_freq(CLKSEL_40MHZ | CLKDIV_4) / freq < 0xFFFF)
+        mode = CLKSEL_40MHZ | CLKDIV_4;
+    else if (get_base_freq(CLKSEL_40MHZ | CLKDIV_8) / freq < 0xFFFF)
+        mode = CLKSEL_40MHZ | CLKDIV_8;
+    else if (get_base_freq(CLKSEL_40MHZ | CLKDIV_16) / freq < 0xFFFF)
+        mode = CLKSEL_40MHZ | CLKDIV_16;
+    else if (get_base_freq(CLKSEL_40MHZ | CLKDIV_32) / freq < 0xFFFF)
+        mode = CLKSEL_40MHZ | CLKDIV_32;
+    else if (get_base_freq(CLKSEL_40MHZ | CLKDIV_64) / freq < 0xFFFF)
+        mode = CLKSEL_40MHZ | CLKDIV_64;
+    else if (get_base_freq(CLKSEL_40MHZ | CLKDIV_128) / freq < 0xFFFF)
+        mode = CLKSEL_40MHZ | CLKDIV_128;
+    else if (get_base_freq(CLKSEL_100KHZ | CLKDIV_1) / freq < 0xFFFF)
+        mode = CLKSEL_100KHZ | CLKDIV_1;
+    else if (get_base_freq(CLKSEL_100KHZ | CLKDIV_2) / freq < 0xFFFF)
+        mode = CLKSEL_100KHZ | CLKDIV_2;
+    else if (get_base_freq(CLKSEL_100KHZ | CLKDIV_4) / freq < 0xFFFF)
+        mode = CLKSEL_100KHZ | CLKDIV_4;
+    else if (get_base_freq(CLKSEL_100KHZ | CLKDIV_8) / freq < 0xFFFF)
+        mode = CLKSEL_100KHZ | CLKDIV_8;
+    else if (get_base_freq(CLKSEL_100KHZ | CLKDIV_16) / freq < 0xFFFF)
+        mode = CLKSEL_100KHZ | CLKDIV_16;
+    else if (get_base_freq(CLKSEL_100KHZ | CLKDIV_32) / freq < 0xFFFF)
+        mode = CLKSEL_100KHZ | CLKDIV_32;
+    else if (get_base_freq(CLKSEL_100KHZ | CLKDIV_64) / freq < 0xFFFF)
+        mode = CLKSEL_100KHZ | CLKDIV_64;
+    else if (get_base_freq(CLKSEL_100KHZ | CLKDIV_128) / freq < 0xFFFF)
+        mode = CLKSEL_100KHZ | CLKDIV_128;
+    else {
+        printf("Frequency out of range\n");
+        return 1;
+    }
+    base_freq = get_base_freq(mode);
+    // printf("mode=%d, base_freq=%d\n", mode, base_freq);
+
+    uint32_t duration = base_freq / freq;
+    uint32_t duration_h = duration * duty / 100;
+    uint32_t duration_l = duration * (100-duty) / 100;
+    pwm_raw(channel, mode, duration_h, duration_l);
+
+    return 0;
 }
 
 int main(int argc, char **argv)
@@ -169,7 +250,5 @@ int main(int argc, char **argv)
         }
     }
 
-    pwm(channel, freq, duty);
-
-    return 0;
+    return pwm(channel, freq, duty);
 }
